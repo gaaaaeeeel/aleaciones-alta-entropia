@@ -13,11 +13,13 @@ Etapa 3 del proyecto de Python · Ingeniería de Materiales · Facultad de Ingen
 
 ## Qué incluye
 
-| Vista | Función |
+| Sección | Para qué sirve |
 |---|---|
-| **Explorador** | Filtros por familia de fase, sistema de aleación, tipo de ensayo, temperatura, procesamiento, rangos de propiedades, elementos y calidad del dato. Gráfica con ejes y color configurables, seis vistas guiadas, tabla ordenable y ficha de cada registro con su DOI. |
-| **Calculadora de composición** | A partir de una fórmula calcula ΔS<sub>mix</sub>, δ, VEC, densidad por regla de mezclas y sistema; predice la fase con la regla del VEC; ubica la aleación en el mapa VEC–δ del dataset y busca las composiciones más parecidas. |
-| **Guía** | Definiciones, glosario de procesamiento, criterios de calidad y limitaciones. |
+| **Inicio** | Explica qué es una aleación de alta entropía, resume el dataset y da tres recomendaciones antes de usar los datos. |
+| **Buscar aleaciones** | Preguntas sencillas (tipo de carga, temperatura, estructura, resistencia mínima, ductilidad mínima y densidad máxima). Los resultados se agrupan por composición en tarjetas, y una gráfica muestra en qué zona caen. Cada aleación abre un panel con todos sus registros, avisos de calidad y DOI de los artículos. |
+| **Lo que dicen los datos** | Siete preguntas respondidas con gráficas interactivas: la revisión de calidad de la Etapa 1, los análisis de la Etapa 2 (estructura cristalina, procesamiento y Hall-Petch), el efecto de la temperatura, el compromiso resistencia-ductilidad y la regla del VEC. |
+| **Diseñar una aleación** | Eliges elementos y proporciones; responde si es de alta entropía (ΔS<sub>mix</sub>), si formará solución sólida (δ) y qué estructura se espera (VEC), estima su resistencia con los grupos de la Etapa 2 y muestra las aleaciones reales más parecidas. |
+| **Glosario** | Definiciones, procesamiento, criterios de calidad, limitaciones y fuentes. |
 
 ## Estructura del repositorio
 
@@ -38,7 +40,8 @@ Etapa 3 del proyecto de Python · Ingeniería de Materiales · Facultad de Ingen
 3. Lee las fórmulas con paréntesis como porcentaje cuando los coeficientes suman 100, y encuentra que las 672 fórmulas corresponden a 631 composiciones.
 4. Calcula ΔS<sub>mix</sub>, δ, VEC y densidad por regla de mezclas. La densidad calculada coincide con la del dataset (error mediano de −0.02 %), y la regla del VEC acierta en el 74.3 % de las aleaciones.
 5. Asigna un indicador de **calidad del dato** (Alta, Media, Baja) con avisos como elongación plástica mayor que la total, razón YS/HV fuera de lo esperado o valores corregidos por los compiladores.
-6. Exporta todo a `datos.js`.
+6. Repite los análisis de la Etapa 2 (grupos por estructura, pares de procesamiento, series de Hall-Petch) y el resumen de calidad de la Etapa 1 para mostrarlos en la página. Al hacerlo se encontraron dos ajustes: una aleación cambia de sistema con la lectura corregida de paréntesis, y la comparación colada-recocido de la Etapa 2 tenía las etiquetas invertidas. Ninguno cambia sus conclusiones.
+7. Exporta todo a `datos.js`.
 
 Para regenerar los datos: abrir el notebook en Google Colab, ejecutar todas las celdas y reemplazar `datos.js` con el archivo descargado.
 
@@ -55,7 +58,7 @@ Para regenerar los datos: abrir el notebook en Google Colab, ejecutar todas las 
 - Guo, S., Ng, C., Lu, J. y Liu, C. T. (2011). Effect of valence electron concentration on stability of fcc or bcc phase in high entropy alloys. Journal of Applied Physics, 109, 103505.
 - Yang, X. y Zhang, Y. (2012). Prediction of high-entropy stabilized solid-solution in multi-component alloys. Materials Chemistry and Physics, 132, 233–238.
 
-## Dataset 3
+## Equipo
 
 - Integrante 1 —
 - Integrante 2 —
