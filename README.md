@@ -55,7 +55,7 @@ Para regenerar los datos: abrir el notebook en Google Colab, ejecutar todas las 
 - Guo, S., Ng, C., Lu, J. y Liu, C. T. (2011). Effect of valence electron concentration on stability of fcc or bcc phase in high entropy alloys. Journal of Applied Physics, 109, 103505.
 - Yang, X. y Zhang, Y. (2012). Prediction of high-entropy stabilized solid-solution in multi-component alloys. Materials Chemistry and Physics, 132, 233–238.
 
-## Equipo
+## Dataset 3
 
 - Integrante 1 —
 - Integrante 2 —
