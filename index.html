@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Explorador de Aleaciones de Alta Entropía</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: banco de trabajo de escritorio. Barra superior con pestañas; filtros a la izquierda,
+   gráfica al centro, tabla y ficha del registro abajo. En pantallas angostas todo se apila. */
+:root{
+  --bg:#eef1f1; --panel:#ffffff; --panel2:#f5f7f7; --ink:#131a1c; --ink2:#435055; --muted:#6f7c81;
+  --line:#d4dbdc; --accent:#0b6b74; --accent-soft:#dcefef; --on-accent:#ffffff;
+  --ok:#0f7a3c; --ok-soft:#e1f2e7; --warn:#9a6200; --warn-soft:#fbf0d9; --bad:#b42828; --bad-soft:#fae3e3;
+  --f1:#2a78d6; --f2:#eb6834; --f3:#1baf7a; --f4:#eda100; --f5:#e87ba4; --f6:#008300; --f7:#9aa0a8;
+  --grid:#e2e7e8; --guide:#56636a;
+  --font-display:"Archivo","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1415; --panel:#171e20; --panel2:#1d2527; --ink:#e6eced; --ink2:#b2bec1; --muted:#87959a;
+  --line:#2a3437; --accent:#45b8c2; --accent-soft:#16363a; --on-accent:#081314;
+  --ok:#4cc27c; --ok-soft:#173226; --warn:#e3a73c; --warn-soft:#382b12; --bad:#ef6b6b; --bad-soft:#3b1c1c;
+  --f1:#3987e5; --f2:#d95926; --f3:#199e70; --f4:#c98500; --f5:#d55181; --f6:#2f9a2f; --f7:#6d737c;
+  --grid:#232c2e; --guide:#9aa8ad; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0f1415; --panel:#171e20; --panel2:#1d2527; --ink:#e6eced; --ink2:#b2bec1; --muted:#87959a;
+  --line:#2a3437; --accent:#45b8c2; --accent-soft:#16363a; --on-accent:#081314;
+  --ok:#4cc27c; --ok-soft:#173226; --warn:#e3a73c; --warn-soft:#382b12; --bad:#ef6b6b; --bad-soft:#3b1c1c;
+  --f1:#3987e5; --f2:#d95926; --f3:#199e70; --f4:#c98500; --f5:#d55181; --f6:#2f9a2f; --f7:#6d737c;
+  --grid:#232c2e; --guide:#9aa8ad; color-scheme:dark;}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;letter-spacing:-0.01em}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num,td.n,.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+sub{font-size:0.72em;line-height:0}
+a{color:var(--accent)}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px;padding-block:18px 14px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand h1{font-size:22px;font-weight:700}
+.brand .tag{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+.tabs a{padding:8px 14px;border-radius:6px;color:var(--ink2);text-decoration:none;font-weight:500}
+.tabs a:hover{background:var(--panel2)}
+.tabs a[aria-current="page"]{background:var(--accent);color:var(--on-accent)}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.view{display:grid;gap:16px}
+.explorer{grid-template-columns:290px minmax(0,1fr)}
+.side{padding:16px;display:flex;flex-direction:column;gap:18px;align-self:start;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}
+.main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.lower{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+.lower.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media (max-width:1150px){.lower,.lower.two{grid-template-columns:1fr}}
+@media (max-width:820px){.explorer{grid-template-columns:1fr}.side{position:static;max-height:none}}
+
+.lbl{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+legend{padding:0;margin-bottom:6px}
+.check{display:flex;align-items:center;gap:8px;cursor:pointer}
+.check input{accent-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+.sw{width:10px;height:10px;border-radius:50%;flex:none;display:inline-block}
+.cnt{margin-left:auto;color:var(--muted);font-family:var(--font-mono);font-size:12px}
+.range{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}
+.range span{color:var(--ink2);font-size:13px}
+.range input{width:66px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);font-family:var(--font-mono);font-size:12px}
+.txt{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--panel2)}
+.hint{font-size:12px;color:var(--muted);margin:0}
+.btn{padding:7px 12px;border:1px solid var(--line);background:var(--panel2);border-radius:6px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.btn.small{padding:3px 9px;font-size:12px}
+
+.presets{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 14px}
+.presets .btn{font-size:13px}
+.presets .btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.preset-note{padding:0 14px 12px;margin-top:-4px;font-size:13px;color:var(--ink2);flex-basis:100%}
+.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.summary div{background:var(--panel);padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.summary .v{font-family:var(--font-mono);font-size:20px;font-weight:500}
+.summary .k{font-size:12px;color:var(--muted)}
+@media (max-width:620px){.summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.chartbox{padding:12px 14px 8px}
+.chart-head{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-bottom:6px}
+.chart-head h2{font-size:15px;font-weight:600;margin-right:auto}
+.axis-ctl{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--ink2)}
+.axis-ctl select{padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);max-width:200px}
+.chart{position:relative;width:100%}
+.chart svg{display:block;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink2);padding:6px 0 4px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.12);min-width:180px;z-index:5}
+.tip b{font-size:13px}
+.tip .row{display:flex;justify-content:space-between;gap:12px}
+.tip .row span:last-child{font-family:var(--font-mono)}
+.note{font-size:12px;color:var(--muted);margin:2px 0 0}
+
+.tablebox{padding:12px 0 0;min-width:0}
+.tablebox h2{font-size:15px;font-weight:600;padding:0 14px 8px}
+.scroll{overflow:auto;max-height:480px;border-top:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--line)}
+th{position:sticky;top:0;background:var(--panel2);font-weight:600;font-size:12px;color:var(--ink2);cursor:pointer;user-select:none;z-index:1}
+th[aria-sort]{color:var(--accent)}
+td.n,th.n{text-align:right}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--panel2)}
+tbody tr.sel{background:var(--accent-soft)}
+.more{padding:8px 14px;font-size:12px;color:var(--muted)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.plain::before{display:none}
+.c-Alta{color:var(--ok);background:var(--ok-soft)}
+.c-Media{color:var(--warn);background:var(--warn-soft)}
+.c-Baja{color:var(--bad);background:var(--bad-soft)}
+.c-neutral{color:var(--ink2);background:var(--panel2)}
+
+.ficha{padding:16px;display:flex;flex-direction:column;gap:14px}
+.ficha .f{font-family:var(--font-display);font-size:26px;font-weight:700;overflow-wrap:anywhere}
+.ficha .sub{color:var(--muted);font-size:12px;font-family:var(--font-mono);overflow-wrap:anywhere}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin:0;font-size:13px}
+dt{color:var(--ink2)}
+dd{margin:0;text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.list{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--ink2);display:flex;flex-direction:column;gap:4px}
+.empty{color:var(--muted);font-size:13px}
+.compbar{display:flex;height:22px;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.compbar span{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;min-width:0;overflow:hidden;white-space:nowrap}
+.complist{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink2);margin-top:6px;font-family:var(--font-mono)}
+.quote{font-size:12px;color:var(--ink2);background:var(--panel2);border-radius:6px;padding:8px 10px;font-style:italic;overflow-wrap:anywhere}
+
+.calc{grid-template-columns:360px minmax(0,1fr)}
+@media (max-width:920px){.calc{grid-template-columns:1fr}}
+.inputs{padding:16px;display:flex;flex-direction:column;gap:16px;align-self:start}
+.formula-in{font-family:var(--font-mono);font-size:16px;padding:8px 10px}
+.rows{display:flex;flex-direction:column;gap:6px}
+.erow{display:grid;grid-template-columns:52px 1fr 70px 28px;gap:8px;align-items:center}
+.erow b{font-family:var(--font-display);font-size:15px}
+.erow input[type=range]{width:100%;accent-color:var(--accent)}
+.erow input[type=number]{width:70px;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);font-family:var(--font-mono);font-size:12px;text-align:right}
+.erow button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0}
+.erow button:hover{color:var(--bad)}
+.addrow{display:flex;gap:8px}
+.addrow select{flex:1;padding:5px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel2)}
+.err{color:var(--bad);font-size:13px;margin:0}
+.results{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.results div{background:var(--panel);padding:12px 14px;display:flex;flex-direction:column;gap:3px}
+.results .v{font-family:var(--font-mono);font-size:22px}
+.results .k{font-size:12px;color:var(--muted)}
+.results .s{font-size:12px;color:var(--ink2)}
+@media (max-width:640px){.results{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.formulas{padding:14px 16px;font-family:var(--font-mono);font-size:13px;line-height:1.8;overflow-x:auto}
+.formulas div{white-space:normal;overflow-wrap:anywhere}
+.formulas .c{color:var(--muted)}
+.msgs{display:flex;flex-direction:column;gap:6px}
+.msg{padding:8px 12px;border-radius:6px;font-size:13px}
+.msg.ok{background:var(--ok-soft);color:var(--ok)}
+.msg.warn{background:var(--warn-soft);color:var(--warn)}
+.msg.info{background:var(--accent-soft);color:var(--ink)}
+
+.guide{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:900px){.guide{grid-template-columns:1fr}}
+.guide section{padding:18px 20px}
+.guide h2{font-size:17px;margin-bottom:10px}
+.guide p,.guide li{max-width:68ch;color:var(--ink2)}
+.guide ul,.guide ol{padding-left:20px;margin:0;display:flex;flex-direction:column;gap:6px}
+.guide .wide{grid-column:1/-1}
+.gloss{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:13px;color:var(--ink2)}
+.gloss b{font-family:var(--font-mono);color:var(--ink)}
+.foot{margin-top:24px;font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="brand">
+    <h1>Explorador de Aleaciones de Alta Entropía</h1>
+    <span class="tag">Dataset 3 · <span id="n-total">1545</span> registros · 265 artículos</span>
+  </div>
+  <nav class="tabs" aria-label="Secciones">
+    <a href="#explorador" data-view="explorador">Explorador</a>
+    <a href="#calculadora" data-view="calculadora">Calculadora de composición</a>
+    <a href="#guia" data-view="guia">Guía</a>
+  </nav>
+</header>
+
+<!-- ============ EXPLORADOR ============ -->
+<main id="v-explorador" class="view explorer">
+  <aside class="panel side" aria-label="Filtros">
+    <fieldset id="f-fam"><legend class="lbl">Familia de fase</legend></fieldset>
+    <fieldset id="f-sis"><legend class="lbl">Sistema de aleación</legend></fieldset>
+    <fieldset id="f-ens"><legend class="lbl">Tipo de ensayo</legend></fieldset>
+    <fieldset>
+      <legend class="lbl">Temperatura de ensayo (°C)</legend>
+      <div class="range"><span>Rango</span><input id="T-min" type="number" placeholder="mín"><input id="T-max" type="number" placeholder="máx"></div>
+      <label class="check"><input type="checkbox" id="t-amb"> Solo ambiente (20 a 25 °C)</label>
+    </fieldset>
+    <fieldset id="f-proc"><legend class="lbl">Procesamiento</legend><div class="grid2" id="proc-list"></div></fieldset>
+    <fieldset>
+      <legend class="lbl">Rangos de propiedades</legend>
+      <div class="range"><span>YS (MPa)</span><input id="YS-min" type="number" placeholder="mín"><input id="YS-max" type="number" placeholder="máx"></div>
+      <div class="range"><span>UTS (MPa)</span><input id="UTS-min" type="number" placeholder="mín"><input id="UTS-max" type="number" placeholder="máx"></div>
+      <div class="range"><span>Elongación (%)</span><input id="El-min" type="number" placeholder="mín"><input id="El-max" type="number" placeholder="máx"></div>
+      <div class="range"><span>Dureza HV</span><input id="HV-min" type="number" placeholder="mín"><input id="HV-max" type="number" placeholder="máx"></div>
+      <div class="range"><span>ρ (g/cm³)</span><input id="rho-min" type="number" step="0.1" placeholder="mín"><input id="rho-max" type="number" step="0.1" placeholder="máx"></div>
+      <div class="range"><span>VEC</span><input id="VEC-min" type="number" step="0.1" placeholder="mín"><input id="VEC-max" type="number" step="0.1" placeholder="máx"></div>
+    </fieldset>
+    <fieldset>
+      <legend class="lbl">Composición</legend>
+      <input id="incl" class="txt" placeholder="Debe contener: Al, Ti">
+      <input id="excl" class="txt" placeholder="Excluir: Co, V">
+      <input id="buscar" class="txt" placeholder="Buscar fórmula: CoCrFeMnNi">
+      <p class="hint">Símbolos separados por comas.</p>
+    </fieldset>
+    <fieldset id="f-cal"><legend class="lbl">Calidad del dato</legend></fieldset>
+    <fieldset>
+      <legend class="lbl">Otros</legend>
+      <label class="check"><input type="checkbox" id="sin-sec"> Sin fases secundarias</label>
+    </fieldset>
+    <button class="btn" id="reset" type="button">Restablecer filtros</button>
+  </aside>
+
+  <section class="main">
+    <div class="panel presets" role="group" aria-label="Vistas guiadas">
+      <span class="lbl" style="margin-right:4px">Vistas guiadas</span>
+      <p class="preset-note" id="preset-note"></p>
+    </div>
+
+    <div class="summary" aria-live="polite">
+      <div><span class="v" id="s-n">0</span><span class="k">registros cumplen los filtros</span></div>
+      <div><span class="v" id="s-al">0</span><span class="k">aleaciones distintas</span></div>
+      <div><span class="v" id="s-YS">—</span><span class="k">YS mediano (MPa)</span></div>
+      <div><span class="v" id="s-El">—</span><span class="k">elongación mediana (%)</span></div>
+    </div>
+
+    <div class="panel chartbox">
+      <div class="chart-head">
+        <h2 id="chart-title">Gráfica</h2>
+        <label class="axis-ctl">X <select id="ax-x"></select></label>
+        <label class="axis-ctl"><input type="checkbox" id="log-x"> log</label>
+        <label class="axis-ctl">Y <select id="ax-y"></select></label>
+        <label class="axis-ctl"><input type="checkbox" id="log-y"> log</label>
+        <label class="axis-ctl">Color <select id="color-by"></select></label>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="chart" id="chart"></div>
+      <p class="note" id="chart-note"></p>
+    </div>
+
+    <div class="lower">
+      <div class="panel tablebox">
+        <h2>Registros</h2>
+        <div class="scroll"><table id="tabla"><thead></thead><tbody></tbody></table></div>
+        <div class="more" id="more"></div>
+      </div>
+      <aside class="panel ficha" id="ficha" aria-live="polite"></aside>
+    </div>
+  </section>
+</main>
+
+<!-- ============ CALCULADORA ============ -->
+<main id="v-calculadora" class="view calc" hidden>
+  <aside class="panel inputs">
+    <div>
+      <h2 style="font-size:17px">Composición de la aleación</h2>
+      <p class="hint" style="margin-top:4px">Escribe una fórmula o ajusta la cantidad de cada elemento.</p>
+    </div>
+    <div>
+      <label class="lbl" for="c-formula">Fórmula</label>
+      <input id="c-formula" class="txt formula-in" value="AlCoCrFeNi" spellcheck="false" autocomplete="off" style="margin-top:6px">
+      <p class="err" id="c-err" hidden></p>
+    </div>
+    <div>
+      <span class="lbl">Cantidades (moles relativos)</span>
+      <div class="rows" id="c-rows" style="margin-top:8px"></div>
+      <div class="addrow" style="margin-top:8px">
+        <select id="c-add" aria-label="Elemento para agregar"></select>
+        <button class="btn small" type="button" id="c-add-btn">Agregar</button>
+      </div>
+    </div>
+    <div>
+      <span class="lbl">Ejemplos</span>
+      <div class="chips" id="c-ejemplos" style="margin-top:8px"></div>
+    </div>
+  </aside>
+
+  <section class="main">
+    <div class="results">
+      <div><span class="v" id="r-S">—</span><span class="k">Entropía de mezcla ΔS<sub>mix</sub> (en R)</span><span class="s" id="r-S2"></span></div>
+      <div><span class="v" id="r-d">—</span><span class="k">Diferencia de tamaño atómico δ (%)</span><span class="s" id="r-d2"></span></div>
+      <div><span class="v" id="r-VEC">—</span><span class="k">Concentración de electrones de valencia (VEC)</span><span class="s" id="r-VEC2"></span></div>
+      <div><span class="v" id="r-rho">—</span><span class="k">Densidad por regla de mezclas (g/cm³)</span><span class="s" id="r-rho2"></span></div>
+      <div><span class="v" id="r-sis">—</span><span class="k">Sistema de aleación</span><span class="s" id="r-sis2"></span></div>
+      <div><span class="v" id="r-n">—</span><span class="k">Elementos</span><span class="s" id="r-n2"></span></div>
+    </div>
+
+    <div class="panel" style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+      <h2 style="font-size:15px;font-weight:600">Interpretación</h2>
+      <div class="msgs" id="c-msgs"></div>
+    </div>
+
+    <div class="lower two">
+      <div class="panel tablebox">
+        <h2>Composición</h2>
+        <div class="scroll" style="max-height:none"><table id="c-comp"><thead></thead><tbody></tbody></table></div>
+      </div>
+      <div class="panel formulas" id="c-form" aria-label="Desarrollo de los cálculos"></div>
+    </div>
+
+    <div class="lower">
+      <div class="panel chartbox">
+        <div class="chart-head"><h2>Tu aleación en el mapa VEC–δ del dataset</h2></div>
+        <div class="legend" id="c-legend"></div>
+        <div class="chart" id="c-chart"></div>
+        <p class="note" id="c-note"></p>
+      </div>
+      <div class="panel tablebox">
+        <h2>Aleaciones más parecidas del dataset</h2>
+        <div class="scroll" style="max-height:none"><table id="c-vecinos"><thead></thead><tbody></tbody></table></div>
+        <div class="more">Parecido medido por la diferencia de composición atómica. Clic para ver el registro en el explorador.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ GUÍA ============ -->
+<main id="v-guia" class="view guide" hidden>
+  <section class="panel">
+    <h2>Para qué sirve</h2>
+    <p>Reúne 1545 registros de propiedades mecánicas de aleaciones de alta entropía y multicomponentes, tomados de 265 artículos. Permite buscar aleaciones por fase, sistema, procesamiento, condiciones de ensayo y propiedades, compararlas en gráficas y revisar qué tan confiable es cada dato.</p>
+    <p>La calculadora de composición sirve para diseñar o estudiar una aleación: calcula los parámetros que se usan para anticipar su fase y la compara con las aleaciones reales del dataset.</p>
+  </section>
+  <section class="panel">
+    <h2>Cómo usarla</h2>
+    <ol>
+      <li>Elige una vista guiada, por ejemplo <em>Resistencia y ductilidad</em>, o ajusta los filtros.</li>
+      <li>Cada punto es un registro. Pasa el cursor para ver sus datos y haz clic para abrir su ficha.</li>
+      <li>Cambia los ejes y el color para explorar otras relaciones. La tabla se ordena con un clic en el encabezado.</li>
+      <li>Antes de comparar valores, revisa en la ficha el tipo de ensayo, la temperatura y los avisos del dato.</li>
+    </ol>
+  </section>
+  <section class="panel">
+    <h2>Propiedades</h2>
+    <ul>
+      <li><b>YS:</b> esfuerzo de fluencia, el esfuerzo al que empieza la deformación plástica.</li>
+      <li><b>UTS:</b> resistencia última. En compresión es la resistencia máxima a compresión.</li>
+      <li><b>Elongación:</b> deformación a fractura en tensión. En compresión es la deformación máxima del ensayo y no se compara con la de tensión.</li>
+      <li><b>HV:</b> dureza Vickers. Como referencia, σ<sub>y</sub> ≈ HV/3 en unidades consistentes, es decir, YS ≈ 3.27·HV en MPa.</li>
+      <li><b>YS/ρ:</b> resistencia específica, en MPa·cm³/g. Importa cuando el peso es una restricción.</li>
+      <li><b>Hall-Petch:</b> σ<sub>y</sub> = σ<sub>0</sub> + k·d<sup>−1/2</sup>. Granos más finos dan mayor YS.</li>
+    </ul>
+  </section>
+  <section class="panel">
+    <h2>Parámetros de composición</h2>
+    <ul>
+      <li><b>ΔS<sub>mix</sub> = −R Σ x<sub>i</sub> ln x<sub>i</sub>:</b> entropía configuracional. Alta entropía si es ≥ 1.5R; media entre 1R y 1.5R.</li>
+      <li><b>δ:</b> diferencia de tamaño atómico. Con δ ≤ 6.6 % suelen formarse soluciones sólidas simples.</li>
+      <li><b>VEC:</b> electrones de valencia promedio. VEC ≥ 8 favorece FCC; VEC &lt; 6.87 favorece BCC; entre ambos, mezcla FCC+BCC. En este dataset la regla acierta en el <b id="g-acierto">74 %</b> de las aleaciones.</li>
+      <li><b>ρ por regla de mezclas:</b> ρ = Σx<sub>i</sub>A<sub>i</sub> / Σ(x<sub>i</sub>A<sub>i</sub>/ρ<sub>i</sub>). Supone volumen aditivo, sin vacancias ni porosidad.</li>
+    </ul>
+  </section>
+  <section class="panel">
+    <h2>Calidad del dato</h2>
+    <p>Cada registro recibe avisos según los problemas detectados en las etapas 1 y 2, como elongación plástica mayor que la total, razón YS/HV fuera de lo esperado, elongación reportada como límite o valores corregidos por quienes compilaron la base.</p>
+    <ul>
+      <li><span class="chip c-Alta">Alta</span> sin avisos.</li>
+      <li><span class="chip c-Media">Media</span> uno o dos avisos menores.</li>
+      <li><span class="chip c-Baja">Baja</span> una inconsistencia física o varios avisos.</li>
+    </ul>
+  </section>
+  <section class="panel">
+    <h2>Procesamiento</h2>
+    <div class="gloss">
+      <b>AC</b><span>Colada, sin tratamiento posterior</span>
+      <b>A</b><span>Recocido</span>
+      <b>CR</b><span>Laminado en frío</span>
+      <b>HR</b><span>Laminado en caliente</span>
+      <b>HF</b><span>Forjado en caliente</span>
+      <b>HIP</b><span>Prensado isostático en caliente</span>
+      <b>SPS</b><span>Sinterizado por plasma de chispa</span>
+      <b>VHP</b><span>Prensado en caliente al vacío</span>
+      <b>SPD</b><span>Deformación plástica severa</span>
+      <b>GA</b><span>Atomización con gas</span>
+      <b>DC</b><span>Colada direccional</span>
+    </div>
+    <p class="hint" style="margin-top:8px">Un «+» indica pasos sucesivos; por ejemplo, CR+A es laminado en frío seguido de recocido.</p>
+  </section>
+  <section class="panel wide">
+    <h2>Limitaciones</h2>
+    <ul>
+      <li>Los datos se recopilaron de muchos artículos con métodos distintos. No son un experimento controlado: estructura, composición y procesamiento cambian a la vez, y una correlación no demuestra causalidad.</li>
+      <li>Compresión y tensión no son comparables. La mayoría de los ensayos se hizo a temperatura ambiente.</li>
+      <li>Varios registros con la misma aleación, artículo y condiciones no son réplicas: pueden diferir en tamaño de grano o fases.</li>
+      <li>La regla del VEC y el criterio de δ son empíricos y orientan el diseño, pero no sustituyen la caracterización. Los radios, densidades y VEC de los elementos son valores tabulados aproximados.</li>
+      <li>La calculadora no incluye la entalpía de mezcla ni el procesamiento, que también deciden qué fases se forman.</li>
+    </ul>
+  </section>
+</main>
+
+<p class="foot">Datos: Borg et al. (2020), <i>Expanded dataset of mechanical properties and observed phases of multi-principal element alloys</i>, Scientific Data 7, 430. Dataset 3 del curso de Ingeniería de Materiales, Facultad de Ingeniería, UNAM. Preparación de datos en Python (<span class="mono">preparar_datos.ipynb</span>).</p>
+
+<div class="tip" id="tip" hidden></div>
+
+<script src="datos.js"></script>
+<script>
+"use strict";
+/* ---------- Configuración ---------- */
+const COLOREOS = {
+  fam:{nombre:'Familia de fase', orden:['FCC','BCC','FCC+BCC','HCP','Otra','Sin dato'], col:{'FCC':'--f1','BCC':'--f2','FCC+BCC':'--f3','HCP':'--f4','Otra':'--f5','Sin dato':'--f7'}},
+  sis:{nombre:'Sistema', orden:['Metales 3d','Refractaria','Mixta'], col:{'Metales 3d':'--f1','Refractaria':'--f2','Mixta':'--f3'}},
+  ens:{nombre:'Tipo de ensayo', orden:['Tensión','Compresión','Sin dato'], col:{'Tensión':'--f1','Compresión':'--f2','Sin dato':'--f7'}},
+  cal:{nombre:'Calidad del dato', orden:['Alta','Media','Baja'], col:{'Alta':'--ok','Media':'--warn','Baja':'--bad'}}
+};
+const VARS = {
+  YS:{lab:'Esfuerzo de fluencia YS',u:'MPa'}, UTS:{lab:'Resistencia última UTS',u:'MPa'}, El:{lab:'Elongación',u:'%'},
+  HV:{lab:'Dureza Vickers',u:'HV'}, T:{lab:'Temperatura de ensayo',u:'°C'}, rho:{lab:'Densidad ρ (regla de mezclas)',u:'g/cm³'},
+  YSr:{lab:'Resistencia específica YS/ρ',u:'MPa·cm³/g'}, VEC:{lab:'VEC',u:''}, dl:{lab:'Diferencia de tamaño δ',u:'%'},
+  S:{lab:'Entropía de mezcla ΔSmix/R',u:''}, grano:{lab:'Tamaño de grano d',u:'µm'}, dinv:{lab:'d^(−1/2)',u:'µm^(−1/2)'},
+  Eexp:{lab:'Módulo de Young experimental',u:'GPa'}, n:{lab:'Número de elementos',u:''}
+};
+const RANGOS = ['YS','UTS','El','HV','rho','VEC'];
+const PROCS = ['AC','A','CR+A','HIP+A','SPS','CR','Otros','Sin dato'];
+const PRINCIPALES = new Set(PROCS.slice(0,6));
+const VISTAS_G = [
+  {id:'rd', nombre:'Resistencia y ductilidad', x:'El', y:'YS', color:'fam', f:{ens:['Tensión'], tamb:true},
+   nota:'Ensayos de tensión a temperatura ambiente. En general, a mayor YS, menor elongación. Las FCC alcanzan las mayores elongaciones; con YS alto y poca elongación aparecen sobre todo BCC, FCC+BCC y FCC laminadas en frío.'},
+  {id:'vec', nombre:'Mapa de fases VEC–δ', x:'dl', y:'VEC', color:'fam', f:{},
+   nota:'Cada punto es un registro, colocado según los parámetros de su composición y coloreado por la fase reportada. Las líneas marcan los límites de la regla del VEC (8 y 6.87) y el criterio δ = 6.6 %.'},
+  {id:'temp', nombre:'Efecto de la temperatura', x:'T', y:'YS', color:'sis', f:{ens:['Compresión']},
+   nota:'Ensayos de compresión. El YS baja al aumentar la temperatura; las refractarias conservan más resistencia a 1000 °C o más.'},
+  {id:'esp', nombre:'Resistencia específica', x:'rho', y:'YS', color:'sis', lx:false, f:{tamb:true},
+   nota:'A temperatura ambiente. Las líneas marcan YS/ρ constante: las aleaciones más ligeras para una resistencia dada quedan arriba a la izquierda.'},
+  {id:'hv', nombre:'Dureza y fluencia', x:'HV', y:'YS', color:'ens', f:{},
+   nota:'La línea punteada es YS ≈ 3.27·HV (σy ≈ HV/3). Los puntos muy alejados reciben un aviso de calidad.'},
+  {id:'hp', nombre:'Hall-Petch', x:'dinv', y:'YS', color:'fam', f:{tamb:true},
+   nota:'Registros con tamaño de grano a temperatura ambiente. Dentro de una misma aleación, el YS sube al afinar el grano (mayor d^−1/2). Busca una fórmula para ver su serie.'}
+];
+const COLS = [
+  {k:'f',t:'Aleación'},{k:'fam',t:'Fase'},{k:'sis',t:'Sistema'},{k:'proc',t:'Proc.'},{k:'ens',t:'Ensayo'},
+  {k:'T',t:'T (°C)',n:0},{k:'YS',t:'YS',n:0},{k:'UTS',t:'UTS',n:0},{k:'El',t:'El (%)',n:1},{k:'HV',t:'HV',n:0},{k:'rho',t:'ρ',n:2},{k:'cal',t:'Calidad'}
+];
+const CAL = ['Alta','Media','Baja'];
+
+/* ---------- Utilidades ---------- */
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const ok = v => v !== null && v !== undefined && !Number.isNaN(v);
+const fmt = (v,d=2) => ok(v) ? Number(v).toLocaleString('es-MX',{minimumFractionDigits:d,maximumFractionDigits:d}) : '—';
+const fml = f => String(f).replace(/(\d+\.?\d*)/g,'<sub>$1</sub>');
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fasesTxt = s => esc(String(s).replace(/\$\\?mu\$/gi,'μ').replace(/\$\\?sigma\$/gi,'σ').replace(/\$\\?eta\$/gi,'η').replace(/\$\\?alpha\$/gi,'α').replace(/\$\\?beta\$/gi,'β').replace(/\$/g,'').replace(/\\/g,''));
+const mediana = a => { if(!a.length) return null; const s=[...a].sort((x,y)=>x-y), m=s.length>>1; return s.length%2?s[m]:(s[m-1]+s[m])/2; };
+const lista = s => s.split(/[,\s]+/).map(x=>x.trim()).filter(Boolean).map(x=>x[0].toUpperCase()+x.slice(1).toLowerCase());
+const POR_ID = new Map(DATOS.map(m=>[m.id,m]));
+const EL = META.elementos;
+const claveComp = x => Object.entries(x).sort((a,b)=>a[0].localeCompare(b[0])).map(([e,v])=>e+v.toFixed(3)).join('');
+DATOS.forEach(m=>{ m._ck=claveComp(m.x); m._el=new Set(Object.keys(m.x)); m.dinv = m.grano>0 ? +(1/Math.sqrt(m.grano)).toFixed(4) : null; m._p = PRINCIPALES.has(m.proc)?m.proc:(m.proc==='Sin dato'?'Sin dato':'Otros'); });
+$('n-total').textContent = DATOS.length.toLocaleString('es-MX');
+$('g-acierto').textContent = fmt(META.acierto_vec,1)+' %';
+const colorDe = (m,by) => css(COLOREOS[by].col[m[by]]||'--f7');
+
+/* ---------- Gráfica de dispersión en SVG ---------- */
+function ticksLin(a,b){
+  const raw=(b-a)/6, p=Math.pow(10,Math.floor(Math.log10(raw))), m=raw/p;
+  const step=(m<1.5?1:m<3?2:m<7?5:10)*p, out=[];
+  for(let t=Math.ceil(a/step)*step;t<=b+step*1e-9;t+=step) out.push(+t.toFixed(10));
+  return out;
+}
+function ticksLog(a,b){
+  const out=[], span=b-a;
+  for(let e=Math.floor(a);e<=Math.ceil(b);e++) for(const k of (span<1.6?[1,2,3,5]:span<3?[1,2,5]:[1])){
+    const v=k*Math.pow(10,e), l=Math.log10(v); if(l>=a-1e-9&&l<=b+1e-9) out.push(v); }
+  return out;
+}
+const tickLab = v => { const a=Math.abs(v); if(a===0) return '0'; if(a>=10000||a<0.01) return v.toExponential(0).replace('e+','e'); return +v.toPrecision(3)+''; };
+
+function scatter(host, o){
+  const W=Math.max(320, host.clientWidth||800), H=Math.round(Math.min(520, Math.max(300, W*0.5)));
+  const M={l:64,r:18,t:12,b:46}, iw=W-M.l-M.r, ih=H-M.t-M.b;
+  const pts=o.pts.filter(p=>ok(p.x)&&ok(p.y)&&(!o.lx||p.x>0)&&(!o.ly||p.y>0));
+  const all=pts.concat(o.mine?[o.mine]:[]);
+  if(!all.length){ host.innerHTML=`<p class="empty" style="padding:40px 0;text-align:center">Ningún registro cumple los filtros con datos en estos ejes.</p>`; return {dropped:o.pts.length}; }
+  const tr=(v,l)=>l?Math.log10(v):v;
+  let x0=Math.min(...all.map(p=>tr(p.x,o.lx))), x1=Math.max(...all.map(p=>tr(p.x,o.lx)));
+  let y0=Math.min(...all.map(p=>tr(p.y,o.ly))), y1=Math.max(...all.map(p=>tr(p.y,o.ly)));
+  if(x1-x0<1e-9){x0-=0.5;x1+=0.5} if(y1-y0<1e-9){y0-=0.5;y1+=0.5}
+  const px=(x1-x0)*0.04, py=(y1-y0)*0.05; x0-=px;x1+=px;y0-=py;y1+=py;
+  const sx=v=>M.l+(tr(v,o.lx)-x0)/(x1-x0)*iw, sy=v=>M.t+ih-(tr(v,o.ly)-y0)/(y1-y0)*ih;
+  const xt=o.lx?ticksLog(x0,x1):ticksLin(x0,x1), yt=o.ly?ticksLog(y0,y1):ticksLin(y0,y1);
+  const grid=css('--grid'), ink2=css('--ink2'), guide=css('--guide'), bg=css('--panel'), acc=css('--accent');
+  const mono='font-family="IBM Plex Mono,monospace"';
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.ylab)} contra ${esc(o.xlab)}">`;
+  s+=`<defs><clipPath id="clip-${host.id}"><rect x="${M.l}" y="${M.t}" width="${iw}" height="${ih}"/></clipPath></defs>`;
+  for(const t of xt){const X=sx(t);s+=`<line x1="${X}" x2="${X}" y1="${M.t}" y2="${M.t+ih}" stroke="${grid}"/><text x="${X}" y="${M.t+ih+16}" fill="${ink2}" font-size="11" text-anchor="middle" ${mono}>${tickLab(t)}</text>`;}
+  for(const t of yt){const Y=sy(t);s+=`<line x1="${M.l}" x2="${M.l+iw}" y1="${Y}" y2="${Y}" stroke="${grid}"/><text x="${M.l-8}" y="${Y+4}" fill="${ink2}" font-size="11" text-anchor="end" ${mono}>${tickLab(t)}</text>`;}
+  s+=`<text x="${M.l+iw/2}" y="${H-8}" fill="${ink2}" font-size="12" text-anchor="middle">${esc(o.xlab)}</text>`;
+  s+=`<text transform="translate(14 ${M.t+ih/2}) rotate(-90)" fill="${ink2}" font-size="12" text-anchor="middle">${esc(o.ylab)}</text>`;
+  s+=`<g clip-path="url(#clip-${host.id})">`;
+  const dash=`stroke="${guide}" stroke-width="1.2" stroke-dasharray="5 4"`;
+  for(const g of (o.guides||[])){
+    if(g.h!==undefined){ const Y=sy(g.h); s+=`<line x1="${M.l}" x2="${M.l+iw}" y1="${Y}" y2="${Y}" ${dash}/>`; if(g.label) s+=`<text x="${M.l+iw-6}" y="${Y-5}" fill="${guide}" font-size="11" text-anchor="end" ${mono}>${esc(g.label)}</text>`; continue; }
+    if(g.v!==undefined){ const X=sx(g.v); s+=`<line x1="${X}" x2="${X}" y1="${M.t}" y2="${M.t+ih}" ${dash}/>`; if(g.label) s+=`<text x="${X+5}" y="${M.t+14}" fill="${guide}" font-size="11" ${mono}>${esc(g.label)}</text>`; continue; }
+    const seg=[];
+    for(let i=0;i<=80;i++){ const tx=x0+(x1-x0)*i/80, xv=o.lx?Math.pow(10,tx):tx, yv=g.c*Math.pow(xv,g.p||1);
+      if(!(xv>0)||!(yv>0)&&o.ly) continue; seg.push([sx(xv),sy(yv)]); }
+    if(seg.length>1){
+      s+=`<polyline points="${seg.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}" fill="none" ${dash}/>`;
+      if(g.label){ let L=null; for(const [a,b] of seg){ if(a>=M.l&&a<=M.l+iw-90&&b>=M.t+14&&b<=M.t+ih) L=[a,b]; }
+        if(L) s+=`<text x="${L[0]+4}" y="${L[1]-5}" fill="${guide}" font-size="11" ${mono}>${esc(g.label)}</text>`; }
+    }
+  }
+  const coords=[];
+  for(const p of pts){ const X=sx(p.x),Y=sy(p.y); coords.push([X,Y,p]);
+    s+=`<circle cx="${X.toFixed(1)}" cy="${Y.toFixed(1)}" r="${p.r||3.6}" fill="${p.col}" fill-opacity="${p.op||0.78}" stroke="${bg}" stroke-width="0.6"/>`; }
+  const sel=o.sel!==null&&o.sel!==undefined&&pts.find(p=>p.id===o.sel);
+  if(sel){ s+=`<circle cx="${sx(sel.x)}" cy="${sy(sel.y)}" r="9" fill="none" stroke="${css('--ink')}" stroke-width="2"/><circle cx="${sx(sel.x)}" cy="${sy(sel.y)}" r="4.6" fill="${sel.col}" stroke="${bg}" stroke-width="1.5"/>`; }
+  if(o.mine){ const X=sx(o.mine.x),Y=sy(o.mine.y);
+    s+=`<circle cx="${X}" cy="${Y}" r="11" fill="none" stroke="${acc}" stroke-width="2.5"/><circle cx="${X}" cy="${Y}" r="5" fill="${acc}" stroke="${bg}" stroke-width="2"/>`;
+    const right = X < M.l+iw-110; s+=`<text x="${right?X+15:X-15}" y="${Y-12}" fill="${css('--ink')}" font-size="12" font-weight="600" text-anchor="${right?'start':'end'}">Tu aleación</text>`; }
+  s+=`</g><rect x="${M.l}" y="${M.t}" width="${iw}" height="${ih}" fill="none" stroke="${css('--line')}"/></svg>`;
+  host.innerHTML=s;
+  const svg=host.querySelector('svg'), tip=$('tip');
+  const nearest=ev=>{ const r=svg.getBoundingClientRect(), k=W/r.width, mx=(ev.clientX-r.left)*k, my=(ev.clientY-r.top)*k;
+    let best=null,bd=144; for(const c of coords){const d=(c[0]-mx)**2+(c[1]-my)**2; if(d<bd){bd=d;best=c;}} return best; };
+  svg.onmousemove=ev=>{ const b=nearest(ev); if(!b||!o.tip){tip.hidden=true;svg.style.cursor='default';return;}
+    svg.style.cursor='pointer'; tip.innerHTML=o.tip(b[2]); tip.hidden=false;
+    const tw=tip.offsetWidth, th=tip.offsetHeight; let L=ev.pageX+14, T=ev.pageY+14;
+    if(L+tw>window.scrollX+document.documentElement.clientWidth-8) L=ev.pageX-tw-14;
+    if(T+th>window.scrollY+window.innerHeight-8) T=ev.pageY-th-14;
+    tip.style.left=L+'px'; tip.style.top=T+'px'; };
+  svg.onmouseleave=()=>{tip.hidden=true};
+  svg.onclick=ev=>{ const b=nearest(ev); if(b&&o.onClick) o.onClick(b[2]); };
+  return {dropped:o.pts.length-pts.length};
+}
+const fv = (m,k) => { if(k==='El'&&m.Elt&&m.Elt!=='exacto') return (m.Elt==='limite_inferior'?'>':m.Elt==='limite_superior'?'<':'≈')+fmt(m.El,1); return fmt(m[k], ['VEC','dl','S','rho','dinv'].includes(k)?2:(k==='El'?1:0)); };
+const tipReg=(m,x,y)=>`<b>${fml(m.f)}</b>
+  <div class="row"><span>${esc(VARS[x].lab)}</span><span>${fv(m,x)}</span></div>
+  <div class="row"><span>${esc(VARS[y].lab)}</span><span>${fv(m,y)}</span></div>
+  <div class="row"><span>Fase · ensayo</span><span style="font-family:var(--font-body)">${esc(m.fam)} · ${esc(m.ens)}</span></div>
+  <div class="row"><span>T · proc.</span><span>${fmt(m.T,0)} °C · ${esc(m.proc)}</span></div>`;
+const leyenda=(host,by,cats)=>{ host.innerHTML=cats.map(c=>`<span><i class="sw" style="background:var(${COLOREOS[by].col[c]})"></i>${esc(c)}</span>`).join(''); };
+
+/* ---------- Estado del explorador ---------- */
+const S = { fam:new Set(COLOREOS.fam.orden), sis:new Set(COLOREOS.sis.orden), ens:new Set(COLOREOS.ens.orden), proc:new Set(PROCS),
+  cal:new Set(['Alta','Media']), ck:null, ckF:null, x:'El', y:'YS', lx:false, ly:false, color:'fam', sort:'YS', asc:false, sel:null, vista:'rd' };
+
+function checks(host, key, cats, colKey){
+  const cnt={}; DATOS.forEach(m=>{const v=key==='proc'?m._p:m[key]; cnt[v]=(cnt[v]||0)+1;});
+  host.insertAdjacentHTML('beforeend', cats.map((c,i)=>`<label class="check"><input type="checkbox" id="${key}-${i}" data-k="${key}" data-v="${esc(c)}" ${S[key].has(c)?'checked':''}>${
+    colKey?`<i class="sw" style="background:var(${COLOREOS[colKey].col[c]})"></i>`:''}${key==='cal'?`<span class="chip c-${c}">${c}</span>`:esc(c)}<span class="cnt">${cnt[c]||0}</span></label>`).join(''));
+}
+function construirFiltros(){
+  checks($('f-fam'),'fam',COLOREOS.fam.orden,'fam');
+  checks($('f-sis'),'sis',COLOREOS.sis.orden,'sis');
+  checks($('f-ens'),'ens',COLOREOS.ens.orden,'ens');
+  checks($('proc-list'),'proc',PROCS,null);
+  checks($('f-cal'),'cal',CAL,null);
+  document.querySelectorAll('input[data-k]').forEach(i=>i.onchange=()=>{ const st=S[i.dataset.k]; i.checked?st.add(i.dataset.v):st.delete(i.dataset.v); S.vista=null; render(); });
+  const opts=Object.entries(VARS).map(([k,v])=>`<option value="${k}">${esc(v.lab)}${v.u?' ('+esc(v.u)+')':''}</option>`).join('');
+  $('ax-x').innerHTML=opts; $('ax-y').innerHTML=opts;
+  $('color-by').innerHTML=Object.entries(COLOREOS).map(([k,v])=>`<option value="${k}">${esc(v.nombre)}</option>`).join('');
+  document.querySelector('.presets').insertBefore(document.createRange().createContextualFragment(
+    VISTAS_G.map(p=>`<button type="button" class="btn" data-vista="${p.id}" aria-pressed="false">${esc(p.nombre)}</button>`).join('')), $('preset-note'));
+  ['T','YS','UTS','El','HV','rho','VEC'].forEach(k=>['min','max'].forEach(b=>$(`${k}-${b}`).oninput=()=>{S.vista=null;render();}));
+  ['incl','excl','buscar'].forEach(k=>$(k).oninput=()=>{S.sel=null;render();});
+  ['t-amb','sin-sec'].forEach(k=>$(k).onchange=()=>{S.vista=null;render();});
+  $('ax-x').onchange=e=>{S.x=e.target.value;S.lx=false;render();}; $('ax-y').onchange=e=>{S.y=e.target.value;S.ly=false;render();};
+  $('log-x').onchange=e=>{S.lx=e.target.checked;render();}; $('log-y').onchange=e=>{S.ly=e.target.checked;render();};
+  $('color-by').onchange=e=>{S.color=e.target.value;render();};
+  document.querySelectorAll('[data-vista]').forEach(b=>b.onclick=()=>aplicarVista(b.dataset.vista));
+  $('reset').onclick=()=>aplicarVista('rd');
+}
+function limpiar(){
+  ['T','YS','UTS','El','HV','rho','VEC'].forEach(k=>{$(`${k}-min`).value='';$(`${k}-max`).value='';});
+  ['incl','excl','buscar'].forEach(k=>$(k).value=''); $('t-amb').checked=false; $('sin-sec').checked=false;
+  for(const k of ['fam','sis','ens']) S[k]=new Set(COLOREOS[k].orden);
+  S.proc=new Set(PROCS); S.cal=new Set(['Alta','Media']); S.ck=null; S.ckF=null;
+  document.querySelectorAll('input[data-k]').forEach(i=>i.checked=S[i.dataset.k].has(i.dataset.v));
+}
+function aplicarVista(id){
+  const v=VISTAS_G.find(q=>q.id===id); limpiar();
+  if(v.f.ens){ S.ens=new Set(v.f.ens); document.querySelectorAll('input[data-k="ens"]').forEach(i=>i.checked=S.ens.has(i.dataset.v)); }
+  if(v.f.tamb) $('t-amb').checked=true;
+  Object.assign(S,{x:v.x,y:v.y,lx:!!v.lx,ly:!!v.ly,color:v.color,sort:v.y,asc:false,vista:id,sel:null});
+  render();
+}
+function filtrar(){
+  const inc=lista($('incl').value), exc=lista($('excl').value), q=$('buscar').value.trim().toLowerCase(), amb=$('t-amb').checked, sinsec=$('sin-sec').checked;
+  const rg={}; ['T',...RANGOS].forEach(k=>{const a=parseFloat($(`${k}-min`).value), b=parseFloat($(`${k}-max`).value); rg[k]=[isNaN(a)?null:a,isNaN(b)?null:b];});
+  return DATOS.filter(m=>{
+    if(!S.fam.has(m.fam)||!S.sis.has(m.sis)||!S.ens.has(m.ens)||!S.proc.has(m._p)||!S.cal.has(m.cal)) return false;
+    if(amb&&!(m.T>=20&&m.T<=25)) return false;
+    if(sinsec&&m.sec) return false;
+    for(const k in rg){const [a,b]=rg[k]; if(a!==null||b!==null){ if(!ok(m[k])) return false; if(a!==null&&m[k]<a) return false; if(b!==null&&m[k]>b) return false; }}
+    for(const e of inc) if(!m._el.has(e)) return false;
+    for(const e of exc) if(m._el.has(e)) return false;
+    if(q&&!m.f.toLowerCase().includes(q)) return false;
+    if(S.ck&&m._ck!==S.ck) return false;
+    return true;
+  });
+}
+function guias(x,y){
+  const g=[];
+  if(x==='dl'&&y==='VEC') g.push({h:8,label:'VEC = 8 (FCC arriba)'},{h:6.87,label:'VEC = 6.87 (BCC abajo)'},{v:6.6,label:'δ = 6.6 %'});
+  if(x==='rho'&&y==='YS') [100,200,300].forEach(c=>g.push({c,p:1,label:`YS/ρ = ${c}`}));
+  if(x==='HV'&&y==='YS') g.push({c:3.27,p:1,label:'YS = 3.27·HV'});
+  return g;
+}
+
+function render(){
+  document.querySelectorAll('[data-vista]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.vista===S.vista)));
+  const v=VISTAS_G.find(q=>q.id===S.vista);
+  if(S.ck){ $('preset-note').innerHTML=`Registros con la composición de <b>${fml(S.ckF)}</b>, aunque la fórmula esté escrita en otro orden. Se muestran todos los niveles de calidad. <button type="button" class="btn small" id="quitar-ck">Quitar este filtro</button>`; $('quitar-ck').onclick=()=>{S.ck=null;S.ckF=null;render();}; }
+  else $('preset-note').textContent=v?v.nota:'Filtros personalizados.';
+  $('ax-x').value=S.x; $('ax-y').value=S.y; $('log-x').checked=S.lx; $('log-y').checked=S.ly; $('color-by').value=S.color;
+  const R=filtrar();
+  $('s-n').textContent=R.length.toLocaleString('es-MX');
+  $('s-al').textContent=new Set(R.map(m=>m._ck)).size.toLocaleString('es-MX');
+  $('s-YS').textContent=fmt(mediana(R.map(m=>m.YS).filter(ok)),0);
+  $('s-El').textContent=fmt(mediana(R.filter(m=>m.Elt==='exacto').map(m=>m.El).filter(ok)),1);
+  $('chart-title').textContent=`${VARS[S.y].lab} contra ${VARS[S.x].lab}`;
+  const cats=COLOREOS[S.color].orden.filter(c=>R.some(m=>m[S.color]===c)); leyenda($('legend'),S.color,cats);
+  const lab=k=>VARS[k].lab+(VARS[k].u?` (${VARS[k].u})`:'');
+  const res=scatter($('chart'),{ pts:R.map(m=>({x:m[S.x],y:m[S.y],col:colorDe(m,S.color),id:m.id,m})),
+    xlab:lab(S.x), ylab:lab(S.y), lx:S.lx, ly:S.ly, guides:guias(S.x,S.y), sel:S.sel,
+    onClick:p=>{S.sel=p.m.id;render();}, tip:p=>tipReg(p.m,S.x,S.y) });
+  $('chart-note').textContent=res.dropped?`${res.dropped.toLocaleString('es-MX')} registros no aparecen en la gráfica porque les falta «${VARS[S.x].lab}» o «${VARS[S.y].lab}».`:'';
+  tabla(R); ficha();
+}
+function tabla(R){
+  const k=S.sort, dir=S.asc?1:-1;
+  const ord=[...R].sort((a,b)=>{const va=a[k],vb=b[k]; if(!ok(va)&&!ok(vb))return 0; if(!ok(va))return 1; if(!ok(vb))return -1;
+    return (typeof va==='string'?va.localeCompare(vb,'es'):va-vb)*dir;});
+  $('tabla').tHead.innerHTML='<tr>'+COLS.map(c=>`<th class="${c.n!==undefined?'n':''}" data-k="${c.k}" ${c.k===k?`aria-sort="${S.asc?'ascending':'descending'}"`:''} title="Ordenar">${c.t}${c.k===k?(S.asc?' ↑':' ↓'):''}</th>`).join('')+'</tr>';
+  const MAX=150;
+  $('tabla').tBodies[0].innerHTML=ord.slice(0,MAX).map(m=>`<tr data-id="${m.id}" class="${m.id===S.sel?'sel':''}">`+COLS.map(c=>{
+    if(c.k==='f') return `<td><b>${fml(m.f)}</b></td>`;
+    if(c.k==='fam') return `<td><i class="sw" style="background:var(${COLOREOS.fam.col[m.fam]});margin-right:6px"></i>${esc(m.fam)}</td>`;
+    if(c.k==='cal') return `<td><span class="chip c-${m.cal}">${m.cal}</span></td>`;
+    if(c.n===undefined) return `<td>${esc(m[c.k])}</td>`;
+    return `<td class="n">${fv(m,c.k)}</td>`;}).join('')+'</tr>').join('');
+  $('more').textContent=ord.length>MAX?`Mostrando ${MAX} de ${ord.length.toLocaleString('es-MX')}. Ajusta los filtros o el orden para ver otros.`:`${ord.length} registros.`;
+  $('tabla').tHead.querySelectorAll('th').forEach(th=>th.onclick=()=>{ if(S.sort===th.dataset.k) S.asc=!S.asc; else {S.sort=th.dataset.k; S.asc=['f','fam','sis','proc','ens','cal'].includes(th.dataset.k);} render(); });
+  $('tabla').tBodies[0].querySelectorAll('tr').forEach(tr=>tr.onclick=()=>{S.sel=+tr.dataset.id;render();});
+  if((S.sel===null||!R.some(m=>m.id===S.sel))&&ord.length) S.sel=ord[0].id;
+  if(!ord.length) S.sel=null;
+}
+const ELCOL=['--f1','--f2','--f3','--f4','--f5','--f6','--f7'];
+function barraComp(x){
+  const ent=Object.entries(x);
+  return `<div class="compbar" role="img" aria-label="Composición atómica">${ent.map(([e,v],i)=>`<span style="flex:${v};background:var(${ELCOL[i%ELCOL.length]})" title="${e} ${fmt(100*v,1)} %">${v>0.08?e:''}</span>`).join('')}</div>
+    <div class="complist">${ent.map(([e,v])=>`<span>${e} ${fmt(100*v,1)} %</span>`).join('')}</div>`;
+}
+function ficha(){
+  const m=S.sel!==null&&POR_ID.get(S.sel), el=$('ficha');
+  if(!m){ el.innerHTML='<p class="empty">Haz clic en un punto de la gráfica o en una fila de la tabla para ver la ficha del registro.</p>'; return; }
+  const mismaComp=DATOS.filter(d=>d._ck===m._ck), otros=mismaComp.length-1;
+  const escrituras=[...new Set(mismaComp.map(d=>d.f))];
+  const coincide = m.fam==='Sin dato'||m.fam==='Otra'||m.fam==='HCP' ? null : m.fv===m.fam;
+  const av=m.av.map(k=>META.avisos[k].texto), no=m.no.map(k=>META.notas[k]);
+  el.innerHTML=`
+    <div><div class="f">${fml(m.f)}</div>
+      <div class="sub"><a href="https://doi.org/${encodeURI(m.doi)}" target="_blank" rel="noopener">doi:${esc(m.doi)}</a></div></div>
+    <div class="chips"><span class="chip c-${m.cal}">Calidad ${m.cal.toLowerCase()}</span>
+      <span class="chip plain c-neutral"><i class="sw" style="background:var(${COLOREOS.fam.col[m.fam]})"></i>${esc(m.fam)}</span>
+      <span class="chip plain c-neutral">${esc(m.sis)}</span></div>
+    <div><span class="lbl">Composición atómica</span><div style="margin-top:6px">${barraComp(m.x)}</div></div>
+    <dl>
+      <dt>Fases reportadas</dt><dd style="font-family:var(--font-body)">${m.fases?fasesTxt(m.fases):'—'}</dd>
+      <dt>Procesamiento</dt><dd>${esc(m.proc)}</dd>
+      <dt>Ensayo</dt><dd style="font-family:var(--font-body)">${esc(m.ens)} a ${fmt(m.T,0)} °C</dd>
+      <dt>Esfuerzo de fluencia YS</dt><dd>${fmt(m.YS,0)}${ok(m.YSi)?' ± '+fmt(m.YSi,0):''} MPa</dd>
+      <dt>UTS</dt><dd>${fmt(m.UTS,0)}${ok(m.UTSi)?' ± '+fmt(m.UTSi,0):''} MPa</dd>
+      <dt>Elongación</dt><dd>${fv(m,'El')} %</dd>
+      <dt>Dureza</dt><dd>${fmt(m.HV,0)} HV</dd>
+      <dt>Densidad (regla de mezclas)</dt><dd>${fmt(m.rho,2)} g/cm³</dd>
+      <dt>Resistencia específica</dt><dd>${fmt(m.YSr,1)} MPa·cm³/g</dd>
+      <dt>Tamaño de grano</dt><dd>${fmt(m.grano,1)} µm</dd>
+      <dt>Módulo de Young (exp. / ROM)</dt><dd>${fmt(m.Eexp,0)} / ${fmt(m.Erom,0)} GPa</dd>
+    </dl>
+    <div><span class="lbl">Parámetros de composición</span>
+      <dl style="margin-top:6px">
+        <dt>ΔS<sub>mix</sub></dt><dd>${fmt(m.S,2)} R</dd>
+        <dt>δ</dt><dd>${fmt(m.dl,2)} %</dd>
+        <dt>VEC</dt><dd>${fmt(m.VEC,2)}</dd>
+        <dt>Fase que predice el VEC</dt><dd style="font-family:var(--font-body)">${esc(m.fv)} ${coincide===null?'':coincide?'<span class="chip c-Alta">coincide</span>':'<span class="chip c-Media">no coincide</span>'}</dd>
+      </dl></div>
+    <div><span class="lbl">Avisos sobre el dato</span>${av.length?`<ul class="list">${av.map(a=>`<li>${esc(a)}</li>`).join('')}</ul>`:'<p class="hint" style="margin-top:6px">Sin avisos.</p>'}</div>
+    ${no.length?`<div><span class="lbl">Notas</span><ul class="list">${no.map(a=>`<li>${esc(a)}</li>`).join('')}</ul></div>`:''}
+    ${m.com?`<div><span class="lbl">Comentario de quienes compilaron la base</span><p class="quote" style="margin-top:6px">${esc(m.com)}</p></div>`:''}
+    <div class="chips">
+      <button class="btn primary" type="button" id="a-calc">Abrir en la calculadora</button>
+      ${otros>0?`<button class="btn" type="button" id="a-otros">Ver los ${otros+1} registros de esta composición</button>`:''}
+    </div>
+    ${escrituras.length>1?`<p class="hint">Esta composición aparece escrita de ${escrituras.length} formas en el dataset: ${escrituras.map(fml).join(', ')}.</p>`:''}`;
+  $('a-calc').onclick=()=>{ cargarFormula(m.f); location.hash='calculadora'; };
+  const b=$('a-otros'); if(b) b.onclick=()=>verComposicion(m);
+}
+
+/* ---------- Lectura de fórmulas (misma regla que el notebook) ---------- */
+function leer(s,i){
+  const items=[];
+  while(i<s.length&&s[i]!==')'){
+    if(s[i]==='('){ const r=leer(s,i+1); i=r.i; if(s[i]!==')') throw new Error('Falta cerrar un paréntesis.'); i++;
+      const m=/^\d*\.?\d+/.exec(s.slice(i)); const c=m?parseFloat(m[0]):1; i+=m?m[0].length:0; items.push([r.items,c]); }
+    else { const m=/^([A-Z][a-z]?)(\d*\.?\d+)?/.exec(s.slice(i)); if(!m) throw new Error(`No se reconoce «${s.slice(i,i+3)}». Usa símbolos con mayúscula inicial, como Co o Al.`);
+      items.push([m[1], m[2]?parseFloat(m[2]):1]); i+=m[0].length; }
+  }
+  return {items,i};
+}
+function expandir(items,norm){
+  const mo={};
+  for(const [c,k] of items){
+    if(typeof c==='string') mo[c]=(mo[c]||0)+k;
+    else { const sub=expandir(c,norm), t=norm?Object.values(sub).reduce((a,b)=>a+b,0):1; for(const e in sub) mo[e]=(mo[e]||0)+k*sub[e]/t; }
+  }
+  return mo;
+}
+function parsearFormula(f){
+  const s=String(f).replace(/\s/g,''); if(!s) throw new Error('Escribe una fórmula.');
+  const r=leer(s,0); if(r.i<s.length) throw new Error('Hay un paréntesis de cierre de más.');
+  const suma=r.items.reduce((a,b)=>a+b[1],0), grupos=r.items.some(q=>typeof q[0]!=='string');
+  const mo=expandir(r.items, grupos&&(Math.abs(suma-100)<0.5||Math.abs(suma-1)<0.005));
+  for(const e in mo){ if(!EL[e]) throw new Error(`No hay datos del elemento ${e}. Disponibles: ${Object.keys(EL).join(', ')}.`); if(!(mo[e]>0)) delete mo[e]; }
+  if(!Object.keys(mo).length) throw new Error('La fórmula no tiene elementos.');
+  return mo;
+}
+const fracc = mo => { const t=Object.values(mo).reduce((a,b)=>a+b,0); const x={}; for(const e in mo) x[e]=mo[e]/t; return x; };
+function parametros(x){
+  let masa=0,vol=0,rbar=0,vec=0,S=0;
+  for(const e in x){ const p=EL[e]; masa+=x[e]*p.A; vol+=x[e]*p.A/p.rho; rbar+=x[e]*p.r; vec+=x[e]*p.VEC; if(x[e]>0) S-=x[e]*Math.log(x[e]); }
+  let d2=0; for(const e in x) d2+=x[e]*(1-EL[e].r/rbar)**2;
+  const ref=['Nb','Mo','Ta','W','V','Hf','Zr','Re','Ti'].reduce((a,e)=>a+(x[e]||0),0), d3=['Co','Cr','Fe','Ni','Mn','Cu'].reduce((a,e)=>a+(x[e]||0),0);
+  return {rho:masa/vol, rbar, VEC:vec, S, dl:100*Math.sqrt(d2), masa, sis: ref>=0.5?'Refractaria':d3>=0.5?'Metales 3d':'Mixta', ref, d3};
+}
+
+/* ---------- Calculadora ---------- */
+const C={mo:{Al:1,Co:1,Cr:1,Fe:1,Ni:1}};
+const EJEMPLOS=['CoCrFeMnNi','AlCoCrFeNi','Al0.3CoCrFeNi','HfNbTaTiZr','MoNbTaW','(CoCrFeMnNi)92Mo8','Fe40Mn40Co10Cr10'];
+const REFV=(()=>{ const seen=new Set(); return DATOS.filter(m=>['FCC','BCC','FCC+BCC'].includes(m.fam)).filter(m=>{const k=m.f+'|'+m.fam; if(seen.has(k)) return false; seen.add(k); return true;}); })();
+const num = v => +(+v).toPrecision(4);
+function aFormula(mo){ return Object.entries(mo).map(([e,v])=>e+(Math.abs(v-1)<1e-9?'':num(v))).join(''); }
+function cargarFormula(f){ try{ C.mo=parsearFormula(f); $('c-formula').value=f; $('c-err').hidden=true; }catch(e){ $('c-err').textContent=e.message; $('c-err').hidden=false; } calc(); }
+function construirCalc(){
+  $('c-formula').oninput=e=>{ try{ C.mo=parsearFormula(e.target.value); $('c-err').hidden=true; calc(false); }catch(err){ $('c-err').textContent=err.message; $('c-err').hidden=false; } };
+  $('c-add').innerHTML=Object.keys(EL).sort().map(e=>`<option>${e}</option>`).join('');
+  $('c-add-btn').onclick=()=>{ const e=$('c-add').value; C.mo[e]=(C.mo[e]||0)+1; $('c-formula').value=aFormula(C.mo); calc(); };
+  $('c-ejemplos').innerHTML=EJEMPLOS.map(f=>`<button type="button" class="btn small" data-f="${esc(f)}">${fml(f)}</button>`).join('');
+  $('c-ejemplos').querySelectorAll('button').forEach(b=>b.onclick=()=>cargarFormula(b.dataset.f));
+}
+function filas(){
+  const host=$('c-rows'), x=fracc(C.mo);
+  host.innerHTML=Object.entries(C.mo).map(([e,v])=>`<div class="erow"><b>${e}</b>
+    <input type="range" min="0.05" max="3" step="0.05" value="${Math.min(v,3)}" data-e="${e}" aria-label="Cantidad de ${e}">
+    <input type="number" min="0.01" step="0.05" value="${num(v)}" data-e="${e}" aria-label="Cantidad de ${e}">
+    <button type="button" data-del="${e}" title="Quitar ${e}" aria-label="Quitar ${e}">×</button></div>`).join('');
+  host.querySelectorAll('input').forEach(i=>i.oninput=()=>{ const v=parseFloat(i.value); if(v>0){ C.mo[i.dataset.e]=v; $('c-formula').value=aFormula(C.mo); $('c-err').hidden=true; calc(i.type!=='range'); if(i.type==='range'){ const n=host.querySelector(`input[type=number][data-e="${i.dataset.e}"]`); n.value=num(v);} } });
+  host.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ if(Object.keys(C.mo).length<=1) return; delete C.mo[b.dataset.del]; $('c-formula').value=aFormula(C.mo); calc(); });
+}
+function calc(rehacer=true){
+  if(rehacer) filas();
+  const x=fracc(C.mo), p=parametros(x), n=Object.keys(x).length;
+  const clasS = p.S>=1.5?'Alta entropía (≥ 1.5R)':p.S>=1?'Media entropía (1R a 1.5R)':'Baja entropía (< 1R)';
+  const faseV = p.VEC>=8?'FCC':p.VEC<6.87?'BCC':'FCC+BCC';
+  $('r-S').textContent=fmt(p.S,3); $('r-S2').textContent=`${fmt(p.S*8.314,2)} J/(mol·K) · ${clasS}`;
+  $('r-d').textContent=fmt(p.dl,2); $('r-d2').textContent=p.dl<=6.6?'Dentro del intervalo de solución sólida (≤ 6.6 %)':'Por encima de 6.6 %: intermetálicos o fases ordenadas probables';
+  $('r-VEC').textContent=fmt(p.VEC,2); $('r-VEC2').textContent=`Predice ${faseV}`;
+  $('r-rho').textContent=fmt(p.rho,2); $('r-rho2').textContent=`Masa molar promedio ${fmt(p.masa,1)} g/mol`;
+  $('r-sis').textContent=p.sis; $('r-sis2').textContent=`Refractarios ${fmt(100*p.ref,0)} % · metales 3d ${fmt(100*p.d3,0)} %`;
+  $('r-n').textContent=n; $('r-n2').textContent=n>=5?'Cinco o más elementos principales':'Menos de cinco elementos';
+  // Interpretación
+  const msgs=[];
+  msgs.push(['info',`Según la regla del VEC, se espera una estructura <b>${faseV}</b>. En el dataset esta regla acierta en el ${fmt(META.acierto_vec,1)} % de ${META.n_vec} aleaciones (${fmt(META.acierto_vec_fam.FCC,0)} % en FCC, ${fmt(META.acierto_vec_fam.BCC,0)} % en BCC).`]);
+  if(p.VEC>=6.87&&p.VEC<8) msgs.push(['warn','El VEC está en la zona de transición: pequeños cambios de composición o el procesamiento pueden decidir si la aleación es FCC, BCC o mezcla.']);
+  if(p.dl>6.6) msgs.push(['warn',`δ = ${fmt(p.dl,2)} % es grande: la distorsión de la red favorece fases ordenadas o intermetálicas en lugar de una solución sólida simple.`]);
+  if(p.S<1.5) msgs.push(['warn','La entropía de mezcla es menor que 1.5R: por la definición basada en entropía, no es una aleación de alta entropía.']);
+  const conjunto=Object.keys(x).sort().join('-');
+  const mismos=DATOS.filter(m=>Object.keys(m.x).sort().join('-')===conjunto);
+  if(mismos.length){
+    const fams={}; mismos.forEach(m=>fams[m.fam]=(fams[m.fam]||0)+1);
+    const comps=new Set(mismos.map(m=>m._ck)).size;
+    const ysT=mismos.filter(m=>m.T>=20&&m.T<=25&&m.ens==='Tensión'&&ok(m.YS)).map(m=>m.YS), ysC=mismos.filter(m=>m.T>=20&&m.T<=25&&m.ens==='Compresión'&&ok(m.YS)).map(m=>m.YS);
+    msgs.push(['ok',`El dataset tiene <b>${mismos.length}</b> registros de ${comps} composiciones con estos mismos elementos, en cualquier proporción (fases: ${Object.entries(fams).map(([f,c])=>`${esc(f)}: ${c}`).join(', ')}).`+
+      (ysT.length?` YS mediano a temperatura ambiente en tensión: ${fmt(mediana(ysT),0)} MPa (${ysT.length} registros).`:'')+
+      (ysC.length?` En compresión: ${fmt(mediana(ysC),0)} MPa (${ysC.length}).`:'')]);
+  } else msgs.push(['info','No hay registros con exactamente estos elementos. La tabla de la derecha muestra las composiciones más parecidas.']);
+  $('c-msgs').innerHTML=msgs.map(([t,s])=>`<div class="msg ${t}">${s}</div>`).join('');
+  // Tabla de composición
+  const masa=p.masa;
+  $('c-comp').tHead.innerHTML='<tr><th>Elemento</th><th class="n">% at.</th><th class="n">% peso</th><th class="n">r (pm)</th><th class="n">VEC</th><th class="n">ρ (g/cm³)</th></tr>';
+  $('c-comp').tBodies[0].innerHTML=Object.entries(x).map(([e,v])=>`<tr style="cursor:default"><td><b>${e}</b></td><td class="n">${fmt(100*v,2)}</td><td class="n">${fmt(100*v*EL[e].A/masa,2)}</td><td class="n">${EL[e].r}</td><td class="n">${EL[e].VEC}</td><td class="n">${fmt(EL[e].rho,2)}</td></tr>`).join('');
+  // Desarrollo
+  const ent=Object.entries(x), f3=v=>fmt(v,3);
+  const lado=ent.length>6?' + …':'';
+  const corto=a=>a.slice(0,6).join(' + ')+lado;
+  $('c-form').innerHTML=`
+    <div class="c">// Fracciones atómicas: x = cantidad / ${fmt(Object.values(C.mo).reduce((a,b)=>a+b,0),2)}</div>
+    <div>ΔS/R = −Σ xᵢ ln xᵢ = ${corto(ent.map(([e,v])=>`${f3(-v*Math.log(v))}`))} = <b>${f3(p.S)}</b></div>
+    <div>VEC = Σ xᵢ·VECᵢ = ${corto(ent.map(([e,v])=>`${f3(v)}·${EL[e].VEC}`))} = <b>${fmt(p.VEC,2)}</b></div>
+    <div>r̄ = Σ xᵢ·rᵢ = <b>${fmt(p.rbar,1)} pm</b></div>
+    <div>δ = 100·√Σ xᵢ(1 − rᵢ/r̄)² = <b>${fmt(p.dl,2)} %</b></div>
+    <div>ρ = Σ xᵢAᵢ / Σ (xᵢAᵢ/ρᵢ) = ${fmt(p.masa,2)} / ${fmt(p.masa/p.rho,3)} = <b>${fmt(p.rho,2)} g/cm³</b></div>`;
+  // Mapa
+  leyenda($('c-legend'),'fam',['FCC','BCC','FCC+BCC']);
+  scatter($('c-chart'),{ pts:REFV.map(m=>({x:m.dl,y:m.VEC,col:css(COLOREOS.fam.col[m.fam]),op:0.55,r:3,id:m.id,m})), mine:{x:p.dl,y:p.VEC},
+    xlab:'Diferencia de tamaño δ (%)', ylab:'VEC', guides:[{h:8,label:'VEC = 8'},{h:6.87,label:'VEC = 6.87'},{v:6.6,label:'δ = 6.6 %'}],
+    onClick:q=>irA(q.m.id), tip:q=>tipReg(q.m,'dl','VEC') });
+  $('c-note').textContent=`Una entrada por aleación y fase reportada (${REFV.length}). Solo FCC, BCC y FCC+BCC.`;
+  // Vecinos por composición
+  const dist=y=>{ let s=0; const ks=new Set([...Object.keys(x),...Object.keys(y)]); ks.forEach(k=>s+=Math.abs((x[k]||0)-(y[k]||0))); return s/2; };
+  const vistos=new Set(), vec=[];
+  for(const m of DATOS.map(m=>({m,d:dist(m.x)})).sort((a,b)=>a.d-b.d)){ if(vistos.has(m.m._ck)) continue; vistos.add(m.m._ck); vec.push(m); if(vec.length===8) break; }
+  $('c-vecinos').tHead.innerHTML='<tr><th>Aleación</th><th class="n">Diferencia</th><th>Fase reportada</th><th class="n">Registros</th></tr>';
+  $('c-vecinos').tBodies[0].innerHTML=vec.map(({m,d})=>`<tr data-id="${m.id}"><td><b>${fml(m.f)}</b></td><td class="n">${fmt(100*d,1)} %</td><td><i class="sw" style="background:var(${COLOREOS.fam.col[m.fam]});margin-right:6px"></i>${esc(m.fam)}</td><td class="n">${DATOS.filter(q=>q._ck===m._ck).length}</td></tr>`).join('');
+  $('c-vecinos').tBodies[0].querySelectorAll('tr').forEach(tr=>tr.onclick=()=>irA(+tr.dataset.id));
+}
+function verComposicion(m){ limpiar(); S.cal=new Set(CAL); document.querySelectorAll('input[data-k="cal"]').forEach(i=>i.checked=true); S.ck=m._ck; S.ckF=m.f; S.vista=null; S.sel=m.id; render(); }
+function irA(id){ verComposicion(POR_ID.get(id)); location.hash='explorador'; }
+
+/* ---------- Navegación y tema ---------- */
+const VISTAS=['explorador','calculadora','guia'];
+function ruta(){
+  const v=VISTAS.includes(location.hash.slice(1))?location.hash.slice(1):'explorador';
+  VISTAS.forEach(x=>$('v-'+x).hidden=x!==v);
+  document.querySelectorAll('.tabs a').forEach(a=>{ if(a.dataset.view===v) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
+  $('tip').hidden=true;
+  if(v==='explorador') render(); if(v==='calculadora') calc();
+}
+window.addEventListener('hashchange',ruta);
+let rz; window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(ruta,150);});
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',ruta);
+new MutationObserver(ruta).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+construirFiltros(); construirCalc();
+aplicarVista('rd');
+ruta();
+</script>
+
+</body>
+</html>
